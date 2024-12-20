@@ -1,0 +1,13 @@
+{
+  "name": "increment_failed_attempts",
+  "schema": "public",
+  "returns": "integer",
+  "arguments": {
+    "p_ip_address": "text",
+    "p_identifier": "text",
+    "p_last_attempt": "timestamp without time zone"
+  },
+  "language": "plpgsql",
+  "description": "Increments the failed login attempts counter with automatic reset after 15 minutes",
+  "definition": "CREATE OR REPLACE FUNCTION public.increment_failed_attempts(p_ip_address text, p_identifier text, p_last_attempt timestamp without time zone)\n RETURNS integer\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_current_count INTEGER;\r\nBEGIN\r\n    WITH upsert_result AS (\r\n        INSERT INTO failed_attempts (\r\n            ip_address,\r\n            identifier,\r\n            attempt_count,\r\n            last_attempt_at,\r\n            last_reset\r\n        )\r\n        VALUES (\r\n            p_ip_address,\r\n            p_identifier,\r\n            1,\r\n            p_last_attempt,\r\n            p_last_attempt\r\n        )\r\n        ON CONFLICT (ip_address, identifier) DO UPDATE SET\r\n            attempt_count = CASE\r\n                WHEN failed_attempts.last_reset + INTERVAL '15 minutes' < p_last_attempt THEN 1\r\n                ELSE failed_attempts.attempt_count + 1\r\n            END,\r\n            last_attempt_at = p_last_attempt,\r\n            last_reset = CASE\r\n                WHEN failed_attempts.last_reset + INTERVAL '15 minutes' < p_last_attempt THEN p_last_attempt\r\n                ELSE failed_attempts.last_reset\r\n            END\r\n        RETURNING attempt_count\r\n    )\r\n    SELECT attempt_count INTO v_current_count FROM upsert_result;\r\n\r\n    -- Ensure we have a value to return\r\n    IF v_current_count IS NULL THEN\r\n        RAISE EXCEPTION 'Failed to increment attempts: count is null';\r\n    END IF;\r\n\r\n    RETURN v_current_count;\r\nEXCEPTION\r\n    WHEN OTHERS THEN\r\n        RAISE EXCEPTION 'Failed to increment attempts: %', SQLERRM;\r\nEND;\r\n$function$\n"
+}

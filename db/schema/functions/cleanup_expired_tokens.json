@@ -1,0 +1,9 @@
+{
+  "name": "cleanup_expired_tokens",
+  "schema": "public",
+  "returns": "void",
+  "arguments": "",
+  "language": "plpgsql",
+  "description": "Automatically removes expired refresh tokens",
+  "definition": "CREATE OR REPLACE FUNCTION public.cleanup_expired_tokens()\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    DELETE FROM public.refresh_tokens\r\n    WHERE expires_at < CURRENT_TIMESTAMP;\r\nEND;\r\n$function$\n"
+}

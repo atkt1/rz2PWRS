@@ -1,0 +1,25 @@
+{
+  "name": "create_user_with_plan",
+  "schema": "public",
+  "returns": {
+    "type": "TABLE",
+    "columns": {
+      "id": "integer",
+      "email": "character varying",
+      "firstname": "character varying",
+      "lastname": "character varying",
+      "role": "character varying",
+      "plan_id": "integer"
+    }
+  },
+  "arguments": {
+    "p_email": "character varying",
+    "p_firstname": "character varying",
+    "p_lastname": "character varying",
+    "p_password_hash": "text",
+    "p_plan_name": "plan_name"
+  },
+  "language": "plpgsql",
+  "description": "Creates a new user with the specified plan and returns user details with explicit table references",
+  "definition": "CREATE OR REPLACE FUNCTION public.create_user_with_plan(p_email character varying, p_firstname character varying, p_lastname character varying, p_password_hash text, p_plan_name plan_name)\n RETURNS TABLE(id integer, email character varying, firstname character varying, lastname character varying, role character varying, plan_id integer)\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_plan_id INTEGER;\r\n    v_user_id INTEGER;\r\nBEGIN\r\n    -- Get the plan ID for the given plan name with explicit table reference\r\n    SELECT plans.id INTO v_plan_id\r\n    FROM plans\r\n    WHERE plans.name = p_plan_name;\r\n\r\n    IF v_plan_id IS NULL THEN\r\n        RAISE EXCEPTION 'Invalid plan name: %', p_plan_name;\r\n    END IF;\r\n\r\n    -- Insert the new user with plan_id\r\n    INSERT INTO users (\r\n        email,\r\n        firstname,\r\n        lastname,\r\n        password_hash,\r\n        role,\r\n        is_active,\r\n        is_verified,\r\n        created_at,\r\n        plan_id\r\n    )\r\n    VALUES (\r\n        LOWER(p_email),\r\n        p_firstname,\r\n        p_lastname,\r\n        p_password_hash,\r\n        'user',\r\n        TRUE,\r\n        FALSE,\r\n        CURRENT_TIMESTAMP,\r\n        v_plan_id\r\n    )\r\n    RETURNING users.id INTO v_user_id;\r\n\r\n    -- Return the user details with explicit table references\r\n    RETURN QUERY\r\n    SELECT \r\n        users.id,\r\n        users.email,\r\n        users.firstname,\r\n        users.lastname,\r\n        users.role,\r\n        users.plan_id\r\n    FROM users\r\n    WHERE users.id = v_user_id;\r\nEND;\r\n$function$\n"
+}

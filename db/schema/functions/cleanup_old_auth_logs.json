@@ -1,0 +1,11 @@
+{
+  "name": "cleanup_old_auth_logs",
+  "schema": "public",
+  "returns": "integer",
+  "arguments": {
+    "p_retention_days": "integer DEFAULT 90"
+  },
+  "language": "plpgsql",
+  "description": "Removes auth logs older than the specified retention period",
+  "definition": "CREATE OR REPLACE FUNCTION public.cleanup_old_auth_logs(p_retention_days integer DEFAULT 90)\n RETURNS integer\n LANGUAGE plpgsql\nAS $$\nDECLARE\n    v_deleted_count integer;\nBEGIN\n    WITH deleted AS (\n        DELETE FROM public.auth_logs\n        WHERE timestamp < CURRENT_TIMESTAMP - (p_retention_days || ' days')::interval\n        RETURNING *\n    )\n    SELECT COUNT(*) INTO v_deleted_count FROM deleted;\n\n    RETURN v_deleted_count;\nEND;\n$$;"
+}
